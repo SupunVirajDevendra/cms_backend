@@ -3,6 +3,7 @@ package com.epic.cms.service.impl;
 import com.epic.cms.dto.ActionDto;
 import com.epic.cms.dto.CardRequestResponseDto;
 import com.epic.cms.dto.CreateCardRequestDto;
+import com.epic.cms.dto.PageResponse;
 import com.epic.cms.exception.BusinessException;
 import com.epic.cms.exception.ResourceNotFoundException;
 import com.epic.cms.mapper.DtoMapper;
@@ -127,6 +128,25 @@ public class CardRequestServiceImpl implements CardRequestService {
     public List<CardRequestResponseDto> getAllRequests() {
         List<CardRequest> requests = cardRequestRepository.findAll();
         return dtoMapper.toCardRequestResponseDtoList(requests);
+    }
+
+    @Override
+    public PageResponse<CardRequestResponseDto> getAllRequests(int page, int size) {
+        int offset = page * size;
+        List<CardRequest> requests = cardRequestRepository.findAllWithPagination(offset, size);
+        long totalElements = cardRequestRepository.countAllRequests();
+        
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        
+        return PageResponse.<CardRequestResponseDto>builder()
+                .content(dtoMapper.toCardRequestResponseDtoList(requests))
+                .pageNumber(page)
+                .pageSize(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .first(page == 0)
+                .last(page >= totalPages - 1)
+                .build();
     }
 
     @Override

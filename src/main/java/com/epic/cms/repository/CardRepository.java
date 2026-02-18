@@ -24,6 +24,16 @@ public class CardRepository {
         return jdbcTemplate.query(sql, rowMapper);
     }
 
+    public List<Card> findAllWithPagination(int offset, int limit) {
+        String sql = "SELECT * FROM card ORDER BY card_number LIMIT ? OFFSET ?";
+        return jdbcTemplate.query(sql, rowMapper, limit, offset);
+    }
+
+    public long countAllCards() {
+        String sql = "SELECT COUNT(*) FROM card";
+        return jdbcTemplate.queryForObject(sql, Long.class);
+    }
+
     public Optional<Card> findByCardNumber(String cardNumber) {
         String sql = "SELECT * FROM card WHERE card_number = ?";
         List<Card> cards = jdbcTemplate.query(sql, rowMapper, cardNumber);

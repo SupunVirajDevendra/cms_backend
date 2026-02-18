@@ -1,5 +1,7 @@
 package com.epic.cms.util;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -8,19 +10,23 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.security.SecureRandom;
 
+@Component
 public class CardEncryptionUtils {
     
-    private static final String ALGORITHM = "AES";
-    private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding";
+    @Value("${cms.security.encryption.algorithm}")
+    private String algorithm;
     
-    // In production, this should be stored securely (e.g., in a key vault)
-    private static final String SECRET_KEY = "YourSecretKey123"; // 16/24/32 characters for AES
+    @Value("${cms.security.encryption.transformation}")
+    private String transformation;
     
-    public static String encryptCardNumber(String cardNumber) {
+    @Value("${cms.security.encryption.key}")
+    private String secretKey;
+    
+    public String encryptCardNumber(String cardNumber) {
         try {
-            SecretKeySpec secretKey = new SecretKeySpec(SECRET_KEY.getBytes(StandardCharsets.UTF_8), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+            SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), algorithm);
+            Cipher cipher = Cipher.getInstance(transformation);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
             byte[] encryptedBytes = cipher.doFinal(cardNumber.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(encryptedBytes);
         } catch (Exception e) {
@@ -28,11 +34,11 @@ public class CardEncryptionUtils {
         }
     }
     
-    public static String decryptCardNumber(String encryptedCardNumber) {
+    public String decryptCardNumber(String encryptedCardNumber) {
         try {
-            SecretKeySpec secretKey = new SecretKeySpec(SECRET_KEY.getBytes(StandardCharsets.UTF_8), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.DECRYPT_MODE, secretKey);
+            SecretKeySpec secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), algorithm);
+            Cipher cipher = Cipher.getInstance(transformation);
+            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
             byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedCardNumber));
             return new String(decryptedBytes, StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -40,12 +46,12 @@ public class CardEncryptionUtils {
         }
     }
     
-    public static String generateSecureKey() {
+    public String generateSecureKey() {
         try {
-            KeyGenerator keyGenerator = KeyGenerator.getInstance(ALGORITHM);
+            KeyGenerator keyGenerator = KeyGenerator.getInstance(algorithm);
             keyGenerator.init(256, new SecureRandom());
-            SecretKey secretKey = keyGenerator.generateKey();
-            return Base64.getEncoder().encodeToString(secretKey.getEncoded());
+            SecretKey generatedKey = keyGenerator.generateKey();
+            return Base64.getEncoder().encodeToString(generatedKey.getEncoded());
         } catch (Exception e) {
             throw new RuntimeException("Error generating secure key", e);
         }

@@ -2,6 +2,7 @@ package com.epic.cms.service.impl;
 
 import com.epic.cms.dto.CardResponseDto;
 import com.epic.cms.dto.CreateCardDto;
+import com.epic.cms.dto.PageResponse;
 import com.epic.cms.dto.UpdateCardDto;
 import com.epic.cms.exception.ResourceNotFoundException;
 import com.epic.cms.mapper.DtoMapper;
@@ -34,6 +35,25 @@ public class CardServiceImpl implements CardService {
     public List<CardResponseDto> getAllCards() {
         List<Card> cards = repository.findAll();
         return dtoMapper.toCardResponseDtoList(cards);
+    }
+
+    @Override
+    public PageResponse<CardResponseDto> getAllCards(int page, int size) {
+        int offset = page * size;
+        List<Card> cards = repository.findAllWithPagination(offset, size);
+        long totalElements = repository.countAllCards();
+        
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        
+        return PageResponse.<CardResponseDto>builder()
+                .content(dtoMapper.toCardResponseDtoList(cards))
+                .pageNumber(page)
+                .pageSize(size)
+                .totalElements(totalElements)
+                .totalPages(totalPages)
+                .first(page == 0)
+                .last(page >= totalPages - 1)
+                .build();
     }
 
     @Override

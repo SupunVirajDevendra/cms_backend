@@ -47,6 +47,16 @@ public class CardRequestRepository {
         return jdbcTemplate.query(sql, rowMapper);
     }
 
+    public List<CardRequest> findAllWithPagination(int offset, int limit) {
+        String sql = "SELECT * FROM card_request ORDER BY create_time DESC LIMIT ? OFFSET ?";
+        return jdbcTemplate.query(sql, rowMapper, limit, offset);
+    }
+
+    public long countAllRequests() {
+        String sql = "SELECT COUNT(*) FROM card_request";
+        return jdbcTemplate.queryForObject(sql, Long.class);
+    }
+
     public void update(CardRequest cardRequest) {
         String sql = """
             UPDATE card_request 
