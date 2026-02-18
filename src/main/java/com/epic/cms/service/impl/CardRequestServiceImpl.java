@@ -46,11 +46,12 @@ public class CardRequestServiceImpl implements CardRequestService {
         }
 
         // Create request with PENDING status
-        CardRequest cardRequest = new CardRequest();
-        cardRequest.setCardNumber(dto.getCardNumber());
-        cardRequest.setRequestReasonCode(dto.getRequestReasonCode());
-        cardRequest.setStatusCode("PENDING");
-        cardRequest.setCreateTime(LocalDateTime.now());
+        CardRequest cardRequest = CardRequest.builder()
+                .cardNumber(dto.getCardNumber())
+                .requestReasonCode(dto.getRequestReasonCode())
+                .statusCode("PENDING")
+                .createTime(LocalDateTime.now())
+                .build();
 
         cardRequestRepository.save(cardRequest);
 

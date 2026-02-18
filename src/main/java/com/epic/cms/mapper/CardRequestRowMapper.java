@@ -13,16 +13,15 @@ public class CardRequestRowMapper implements RowMapper<CardRequest> {
 
     @Override
     public CardRequest mapRow(ResultSet rs, int rowNum) throws SQLException {
-        CardRequest cardRequest = new CardRequest();
-        cardRequest.setRequestId(rs.getLong("request_id"));
-        cardRequest.setCardNumber(rs.getString("card_number"));
-        cardRequest.setRequestReasonCode(rs.getString("request_reason_code"));
-        cardRequest.setStatusCode(rs.getString("status_code"));
-        
-        LocalDateTime createTime = rs.getTimestamp("create_time") != null 
-            ? rs.getTimestamp("create_time").toLocalDateTime() 
-            : null;
-        cardRequest.setCreateTime(createTime);
+        CardRequest cardRequest = CardRequest.builder()
+                .requestId(rs.getLong("request_id"))
+                .cardNumber(rs.getString("card_number"))
+                .requestReasonCode(rs.getString("request_reason_code"))
+                .statusCode(rs.getString("status_code"))
+                .createTime(rs.getTimestamp("create_time") != null 
+                    ? rs.getTimestamp("create_time").toLocalDateTime() 
+                    : null)
+                .build();
         
         return cardRequest;
     }

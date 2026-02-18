@@ -40,15 +40,16 @@ public class CardServiceImpl implements CardService {
     @Override
     public void createCard(CreateCardDto dto) {
 
-        Card card = new Card();
-        card.setCardNumber(dto.getCardNumber());
-        card.setExpiryDate(dto.getExpiryDate());
-        card.setStatusCode("IACT");
-        card.setCreditLimit(dto.getCreditLimit());
-        card.setCashLimit(dto.getCashLimit());
-        card.setAvailableCreditLimit(dto.getCreditLimit());
-        card.setAvailableCashLimit(dto.getCashLimit());
-        card.setLastUpdateTime(LocalDateTime.now());
+        Card card = Card.builder()
+                .cardNumber(dto.getCardNumber())
+                .expiryDate(dto.getExpiryDate())
+                .statusCode("IACT")
+                .creditLimit(dto.getCreditLimit())
+                .cashLimit(dto.getCashLimit())
+                .availableCreditLimit(dto.getCreditLimit())
+                .availableCashLimit(dto.getCashLimit())
+                .lastUpdateTime(LocalDateTime.now())
+                .build();
 
         repository.save(card);
 

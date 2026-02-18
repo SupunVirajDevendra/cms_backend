@@ -1,10 +1,11 @@
 package com.epic.cms.dto;
 
 import jakarta.validation.constraints.NotNull;
-
+import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+@Data
 public class UpdateCardDto {
 
     @NotNull
@@ -15,28 +16,4 @@ public class UpdateCardDto {
 
     @NotNull
     private BigDecimal cashLimit;
-
-    public LocalDate getExpiryDate() {
-        return expiryDate;
-    }
-
-    public void setExpiryDate(LocalDate expiryDate) {
-        this.expiryDate = expiryDate;
-    }
-
-    public BigDecimal getCreditLimit() {
-        return creditLimit;
-    }
-
-    public void setCreditLimit(BigDecimal creditLimit) {
-        this.creditLimit = creditLimit;
-    }
-
-    public BigDecimal getCashLimit() {
-        return cashLimit;
-    }
-
-    public void setCashLimit(BigDecimal cashLimit) {
-        this.cashLimit = cashLimit;
-    }
 }
