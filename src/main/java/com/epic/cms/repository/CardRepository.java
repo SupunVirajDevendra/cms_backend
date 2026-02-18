@@ -57,6 +57,7 @@ public class CardRepository {
         String sql = """
             UPDATE card 
             SET expiry_date = ?, 
+                status_code = ?,
                 credit_limit = ?, 
                 cash_limit = ?, 
                 available_credit_limit = ?, 
@@ -67,6 +68,7 @@ public class CardRepository {
 
         jdbcTemplate.update(sql,
                 card.getExpiryDate(),
+                card.getStatusCode(),
                 card.getCreditLimit(),
                 card.getCashLimit(),
                 card.getAvailableCreditLimit(),

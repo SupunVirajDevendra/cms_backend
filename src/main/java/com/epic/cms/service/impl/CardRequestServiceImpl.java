@@ -1,5 +1,6 @@
 package com.epic.cms.service.impl;
 
+import com.epic.cms.dto.ActionDto;
 import com.epic.cms.dto.CreateCardRequestDto;
 import com.epic.cms.exception.BusinessException;
 import com.epic.cms.exception.ResourceNotFoundException;
@@ -13,8 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @Transactional
@@ -55,5 +56,70 @@ public class CardRequestServiceImpl implements CardRequestService {
 
         logger.info("Card request created: {} for card: {} with type: {}", 
                    dto.getRequestReasonCode(), dto.getCardNumber(), dto.getRequestReasonCode());
+    }
+
+    @Override
+    public void processRequest(Long requestId, ActionDto action) {
+        // Validate request exists
+        CardRequest request = cardRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found: " + requestId));
+
+        // Validate request status is PENDING
+        if (!"PENDING".equals(request.getStatusCode())) {
+            throw new BusinessException("Request is not PENDING: " + requestId);
+        }
+
+        if (Boolean.TRUE.equals(action.getApprove())) {
+            // APPROVE logic
+            // Validate card exists
+            Card card = cardRepository.findByCardNumber(request.getCardNumber())
+                    .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + request.getCardNumber()));
+
+            // Business rules for approval
+            if ("ACTI".equals(request.getRequestReasonCode())) {
+                // ACTI: Card must be IACT (Inactive)
+                if (!"IACT".equals(card.getStatusCode())) {
+                    throw new BusinessException("Cannot activate card: Card must be INACTIVE (IACT)");
+                }
+                // Update card to CACT (Active)
+                card.setStatusCode("CACT");
+                cardRepository.update(card);
+                
+            } else if ("CDCL".equals(request.getRequestReasonCode())) {
+                // CDCL: Card must be CACT (Active)
+                if (!"CACT".equals(card.getStatusCode())) {
+                    throw new BusinessException("Cannot close card: Card must be ACTIVE (CACT)");
+                }
+                // Update card to DACT (Deactivated)
+                card.setStatusCode("DACT");
+                cardRepository.update(card);
+            }
+
+            // Update request status to APPROVED
+            request.setStatusCode("APPROVED");
+            cardRequestRepository.update(request);
+
+            logger.info("Request approved: {} for card: {} with type: {}", 
+                       requestId, request.getCardNumber(), request.getRequestReasonCode());
+
+        } else {
+            // REJECT logic (card remains unchanged)
+            request.setStatusCode("REJECTED");
+            cardRequestRepository.update(request);
+
+            logger.info("Request rejected: {} for card: {} with type: {}", 
+                       requestId, request.getCardNumber(), request.getRequestReasonCode());
+        }
+    }
+
+    @Override
+    public List<CardRequest> getAllRequests() {
+        return cardRequestRepository.findAll();
+    }
+
+    @Override
+    public CardRequest getRequestById(Long requestId) {
+        return cardRequestRepository.findById(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Request not found: " + requestId));
     }
 }

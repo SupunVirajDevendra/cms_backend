@@ -6,6 +6,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class CardRequestRepository {
@@ -30,6 +32,31 @@ public class CardRequestRepository {
                 cardRequest.getRequestReasonCode(),
                 cardRequest.getStatusCode(),
                 cardRequest.getCreateTime()
+        );
+    }
+
+    public Optional<CardRequest> findById(Long requestId) {
+        String sql = "SELECT * FROM card_request WHERE request_id = ?";
+        return jdbcTemplate.query(sql, rowMapper, requestId)
+                .stream()
+                .findFirst();
+    }
+
+    public List<CardRequest> findAll() {
+        String sql = "SELECT * FROM card_request ORDER BY create_time DESC";
+        return jdbcTemplate.query(sql, rowMapper);
+    }
+
+    public void update(CardRequest cardRequest) {
+        String sql = """
+            UPDATE card_request 
+            SET status_code = ?
+            WHERE request_id = ?
+        """;
+
+        jdbcTemplate.update(sql,
+                cardRequest.getStatusCode(),
+                cardRequest.getRequestId()
         );
     }
 }
