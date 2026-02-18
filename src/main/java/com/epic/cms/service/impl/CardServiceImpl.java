@@ -1,8 +1,10 @@
 package com.epic.cms.service.impl;
 
+import com.epic.cms.dto.CardResponseDto;
 import com.epic.cms.dto.CreateCardDto;
 import com.epic.cms.dto.UpdateCardDto;
 import com.epic.cms.exception.ResourceNotFoundException;
+import com.epic.cms.mapper.DtoMapper;
 import com.epic.cms.model.Card;
 import com.epic.cms.repository.CardRepository;
 import com.epic.cms.service.CardService;
@@ -19,22 +21,26 @@ import java.util.List;
 public class CardServiceImpl implements CardService {
 
     private final CardRepository repository;
+    private final DtoMapper dtoMapper;
     private static final Logger logger =
             LoggerFactory.getLogger(CardServiceImpl.class);
 
-    public CardServiceImpl(CardRepository repository) {
+    public CardServiceImpl(CardRepository repository, DtoMapper dtoMapper) {
         this.repository = repository;
+        this.dtoMapper = dtoMapper;
     }
 
     @Override
-    public List<Card> getAllCards() {
-        return repository.findAll();
+    public List<CardResponseDto> getAllCards() {
+        List<Card> cards = repository.findAll();
+        return dtoMapper.toCardResponseDtoList(cards);
     }
 
     @Override
-    public Card getByCardNumber(String cardNumber) {
-        return repository.findByCardNumber(cardNumber)
+    public CardResponseDto getByCardNumber(String cardNumber) {
+        Card card = repository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardNumber));
+        return dtoMapper.toCardResponseDto(card);
     }
 
     @Override

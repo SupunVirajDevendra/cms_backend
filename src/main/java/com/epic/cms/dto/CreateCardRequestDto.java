@@ -7,7 +7,7 @@ import lombok.Data;
 public class CreateCardRequestDto {
 
     @NotBlank
-    private String cardNumber;
+    private String cardIdentifier; // Accept: plain card number, masked card number, or mask ID
 
     @NotBlank
     private String requestReasonCode;   // ACTI / CDCL

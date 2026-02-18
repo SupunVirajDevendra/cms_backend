@@ -1,16 +1,14 @@
-package com.epic.cms.model;
+package com.epic.cms.dto;
 
-import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-@Builder
-public class Card {
-    private String cardNumber; // Plain text (for internal use)
-    private String encryptedCardNumber; // Encrypted (for database storage)
+public class CardResponseDto {
+    private String cardNumber; // This will contain the masked card number
+    private String maskId;
     private LocalDate expiryDate;
     private String statusCode;
     private BigDecimal creditLimit;

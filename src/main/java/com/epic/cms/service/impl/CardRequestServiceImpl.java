@@ -1,14 +1,17 @@
 package com.epic.cms.service.impl;
 
 import com.epic.cms.dto.ActionDto;
+import com.epic.cms.dto.CardRequestResponseDto;
 import com.epic.cms.dto.CreateCardRequestDto;
 import com.epic.cms.exception.BusinessException;
 import com.epic.cms.exception.ResourceNotFoundException;
+import com.epic.cms.mapper.DtoMapper;
 import com.epic.cms.model.Card;
 import com.epic.cms.model.CardRequest;
 import com.epic.cms.repository.CardRepository;
 import com.epic.cms.repository.CardRequestRepository;
 import com.epic.cms.service.CardRequestService;
+import com.epic.cms.util.CardNumberResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -23,19 +27,25 @@ public class CardRequestServiceImpl implements CardRequestService {
 
     private final CardRequestRepository cardRequestRepository;
     private final CardRepository cardRepository;
+    private final DtoMapper dtoMapper;
+    private final CardNumberResolver cardNumberResolver;
     private static final Logger logger = LoggerFactory.getLogger(CardRequestServiceImpl.class);
 
     public CardRequestServiceImpl(CardRequestRepository cardRequestRepository, 
-                                CardRepository cardRepository) {
+                                CardRepository cardRepository,
+                                DtoMapper dtoMapper,
+                                CardNumberResolver cardNumberResolver) {
         this.cardRequestRepository = cardRequestRepository;
         this.cardRepository = cardRepository;
+        this.dtoMapper = dtoMapper;
+        this.cardNumberResolver = cardNumberResolver;
     }
 
     @Override
     public void createRequest(CreateCardRequestDto dto) {
-        // Validate card exists
-        Card card = cardRepository.findByCardNumber(dto.getCardNumber())
-                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + dto.getCardNumber()));
+        // Resolve card from identifier (plain, masked, or mask ID)
+        Optional<Card> cardOpt = cardNumberResolver.resolveCard(dto.getCardIdentifier());
+        Card card = cardOpt.orElseThrow(() -> new ResourceNotFoundException("Card not found: " + dto.getCardIdentifier()));
 
         // Business rules based on request type
         if ("CDCL".equals(dto.getRequestReasonCode())) {
@@ -47,7 +57,7 @@ public class CardRequestServiceImpl implements CardRequestService {
 
         // Create request with PENDING status
         CardRequest cardRequest = CardRequest.builder()
-                .cardNumber(dto.getCardNumber())
+                .cardNumber(card.getCardNumber()) // Store plain card number internally
                 .requestReasonCode(dto.getRequestReasonCode())
                 .statusCode("PENDING")
                 .createTime(LocalDateTime.now())
@@ -56,7 +66,7 @@ public class CardRequestServiceImpl implements CardRequestService {
         cardRequestRepository.save(cardRequest);
 
         logger.info("Card request created: {} for card: {} with type: {}", 
-                   dto.getRequestReasonCode(), dto.getCardNumber(), dto.getRequestReasonCode());
+                   dto.getRequestReasonCode(), card.getCardNumber(), dto.getRequestReasonCode());
     }
 
     @Override
@@ -114,13 +124,15 @@ public class CardRequestServiceImpl implements CardRequestService {
     }
 
     @Override
-    public List<CardRequest> getAllRequests() {
-        return cardRequestRepository.findAll();
+    public List<CardRequestResponseDto> getAllRequests() {
+        List<CardRequest> requests = cardRequestRepository.findAll();
+        return dtoMapper.toCardRequestResponseDtoList(requests);
     }
 
     @Override
-    public CardRequest getRequestById(Long requestId) {
-        return cardRequestRepository.findById(requestId)
+    public CardRequestResponseDto getRequestById(Long requestId) {
+        CardRequest request = cardRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResourceNotFoundException("Request not found: " + requestId));
+        return dtoMapper.toCardRequestResponseDto(request);
     }
 }

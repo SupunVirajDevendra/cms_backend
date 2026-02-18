@@ -1,8 +1,8 @@
 package com.epic.cms.controller;
 
 import com.epic.cms.dto.ActionDto;
+import com.epic.cms.dto.CardRequestResponseDto;
 import com.epic.cms.dto.CreateCardRequestDto;
-import com.epic.cms.model.CardRequest;
 import com.epic.cms.service.CardRequestService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -34,14 +34,14 @@ public class CardRequestController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CardRequest>> getAllRequests() {
-        List<CardRequest> requests = cardRequestService.getAllRequests();
+    public ResponseEntity<List<CardRequestResponseDto>> getAllRequests() {
+        List<CardRequestResponseDto> requests = cardRequestService.getAllRequests();
         return ResponseEntity.ok(requests);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CardRequest> getRequestById(@PathVariable Long id) {
-        CardRequest request = cardRequestService.getRequestById(id);
+    public ResponseEntity<CardRequestResponseDto> getRequestById(@PathVariable Long id) {
+        CardRequestResponseDto request = cardRequestService.getRequestById(id);
         return ResponseEntity.ok(request);
     }
 }

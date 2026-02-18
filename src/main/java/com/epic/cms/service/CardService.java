@@ -1,16 +1,16 @@
 package com.epic.cms.service;
 
+import com.epic.cms.dto.CardResponseDto;
 import com.epic.cms.dto.CreateCardDto;
 import com.epic.cms.dto.UpdateCardDto;
-import com.epic.cms.model.Card;
 
 import java.util.List;
 
 public interface CardService {
 
-    List<Card> getAllCards();
+    List<CardResponseDto> getAllCards();
 
-    Card getByCardNumber(String cardNumber);
+    CardResponseDto getByCardNumber(String cardNumber);
 
     void createCard(CreateCardDto dto);
 
