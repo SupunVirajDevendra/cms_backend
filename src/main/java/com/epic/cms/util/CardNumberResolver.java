@@ -25,19 +25,25 @@ public class CardNumberResolver {
             return Optional.empty();
         }
 
-        // Extract first 4 and last 4 digits
-        String firstFour = maskedCardNumber.substring(0, 4);
-        String lastFour = maskedCardNumber.substring(maskedCardNumber.length() - 4);
+        try {
+            // Extract first 4 and last 4 digits
+            String firstFour = maskedCardNumber.substring(0, 4);
+            String lastFour = maskedCardNumber.substring(maskedCardNumber.length() - 4);
 
-        // Find all cards and match pattern
-        List<Card> allCards = cardRepository.findAll();
-        
-        return allCards.stream()
-                .filter(card -> {
-                    String cardNum = card.getCardNumber();
-                    return cardNum.startsWith(firstFour) && cardNum.endsWith(lastFour);
-                })
-                .findFirst();
+            // Find all cards and match pattern
+            List<Card> allCards = cardRepository.findAll();
+            
+            return allCards.stream()
+                    .filter(card -> {
+                        String cardNum = card.getCardNumber();
+                        return cardNum != null && 
+                               cardNum.startsWith(firstFour) && 
+                               cardNum.endsWith(lastFour);
+                    })
+                    .findFirst();
+        } catch (StringIndexOutOfBoundsException e) {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -64,27 +70,33 @@ public class CardNumberResolver {
      * Accepts: plain card number, masked card number, or mask ID
      */
     public Optional<Card> resolveCard(String cardInput) {
-        if (cardInput == null) {
+        if (cardInput == null || cardInput.trim().isEmpty()) {
             return Optional.empty();
         }
 
+        String trimmedInput = cardInput.trim();
+
         // Try plain card number first (for backward compatibility)
-        Optional<Card> card = cardRepository.findByCardNumber(cardInput);
-        if (card.isPresent()) {
-            return card;
+        try {
+            Optional<Card> card = cardRepository.findByCardNumber(trimmedInput);
+            if (card.isPresent()) {
+                return card;
+            }
+        } catch (Exception e) {
+            // Continue to other methods
         }
 
         // Try masked card number
-        if (cardInput.contains("*")) {
-            card = findByMaskedCardNumber(cardInput);
+        if (trimmedInput.contains("*")) {
+            Optional<Card> card = findByMaskedCardNumber(trimmedInput);
             if (card.isPresent()) {
                 return card;
             }
         }
 
         // Try mask ID
-        if (cardInput.startsWith("MASK_")) {
-            card = findByMaskId(cardInput);
+        if (trimmedInput.startsWith("MASK_")) {
+            Optional<Card> card = findByMaskId(trimmedInput);
             if (card.isPresent()) {
                 return card;
             }
