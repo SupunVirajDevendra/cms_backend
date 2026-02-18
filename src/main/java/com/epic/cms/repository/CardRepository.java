@@ -5,6 +5,7 @@ import com.epic.cms.model.Card;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public class CardRepository {
@@ -21,6 +22,12 @@ public class CardRepository {
     public List<Card> findAll() {
         String sql = "SELECT * FROM card";
         return jdbcTemplate.query(sql, rowMapper);
+    }
+
+    public Optional<Card> findByCardNumber(String cardNumber) {
+        String sql = "SELECT * FROM card WHERE card_number = ?";
+        List<Card> cards = jdbcTemplate.query(sql, rowMapper, cardNumber);
+        return cards.isEmpty() ? Optional.empty() : Optional.of(cards.get(0));
     }
 
     public void save(Card card) {
@@ -43,6 +50,29 @@ public class CardRepository {
                 card.getAvailableCreditLimit(),
                 card.getAvailableCashLimit(),
                 card.getLastUpdateTime()
+        );
+    }
+
+    public void update(Card card) {
+        String sql = """
+            UPDATE card 
+            SET expiry_date = ?, 
+                credit_limit = ?, 
+                cash_limit = ?, 
+                available_credit_limit = ?, 
+                available_cash_limit = ?, 
+                last_update_time = ?
+            WHERE card_number = ?
+        """;
+
+        jdbcTemplate.update(sql,
+                card.getExpiryDate(),
+                card.getCreditLimit(),
+                card.getCashLimit(),
+                card.getAvailableCreditLimit(),
+                card.getAvailableCashLimit(),
+                card.getLastUpdateTime(),
+                card.getCardNumber()
         );
     }
 }

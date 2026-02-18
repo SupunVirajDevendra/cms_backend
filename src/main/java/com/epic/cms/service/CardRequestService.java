@@ -1,4 +1,8 @@
 package com.epic.cms.service;
 
-public class CardRequestService {
+import com.epic.cms.dto.CreateCardRequestDto;
+
+public interface CardRequestService {
+
+    void createRequest(CreateCardRequestDto dto);
 }

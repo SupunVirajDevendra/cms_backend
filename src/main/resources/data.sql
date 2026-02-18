@@ -1,26 +1,32 @@
--- =========================
--- STATUS MASTER DATA
--- =========================
+-- ===============================
+-- CARD STATUS MASTER DATA
+-- ===============================
 
-INSERT INTO status (status_code, description) VALUES
-                                                  ('IACT', 'Inactive'),
-                                                  ('CACT', 'Active'),
-                                                  ('DACT', 'Deactivated'),
-                                                  ('PENDING', 'Pending'),
-                                                  ('APPROVED', 'Approved'),
-                                                  ('REJECTED', 'Rejected');
+INSERT INTO card_status (status_code, description) VALUES
+                                                       ('IACT', 'Inactive'),
+                                                       ('CACT', 'Active'),
+                                                       ('DACT', 'Deactivated');
 
--- =========================
+-- ===============================
+-- REQUEST STATUS MASTER DATA
+-- ===============================
+
+INSERT INTO request_status (status_code, description) VALUES
+                                                          ('PENDING', 'Pending'),
+                                                          ('APPROVED', 'Approved'),
+                                                          ('REJECTED', 'Rejected');
+
+-- ===============================
 -- CARD REQUEST TYPES
--- =========================
+-- ===============================
 
 INSERT INTO card_request_type (code, description) VALUES
                                                       ('ACTI', 'Card Activation'),
                                                       ('CDCL', 'Card Close');
 
--- =========================
--- SAMPLE CARDS (Optional)
--- =========================
+-- ===============================
+-- SAMPLE CARDS
+-- ===============================
 
 INSERT INTO card (
     card_number,

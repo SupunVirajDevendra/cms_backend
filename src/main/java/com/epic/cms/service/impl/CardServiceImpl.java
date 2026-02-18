@@ -1,6 +1,8 @@
 package com.epic.cms.service.impl;
 
 import com.epic.cms.dto.CreateCardDto;
+import com.epic.cms.dto.UpdateCardDto;
+import com.epic.cms.exception.ResourceNotFoundException;
 import com.epic.cms.model.Card;
 import com.epic.cms.repository.CardRepository;
 import com.epic.cms.service.CardService;
@@ -30,6 +32,12 @@ public class CardServiceImpl implements CardService {
     }
 
     @Override
+    public Card getByCardNumber(String cardNumber) {
+        return repository.findByCardNumber(cardNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardNumber));
+    }
+
+    @Override
     public void createCard(CreateCardDto dto) {
 
         Card card = new Card();
@@ -45,6 +53,23 @@ public class CardServiceImpl implements CardService {
         repository.save(card);
 
         logger.info("Card created: {}", dto.getCardNumber());
+    }
+
+    @Override
+    public void updateCard(String cardNumber, UpdateCardDto dto) {
+        Card existingCard = repository.findByCardNumber(cardNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardNumber));
+
+        existingCard.setExpiryDate(dto.getExpiryDate());
+        existingCard.setCreditLimit(dto.getCreditLimit());
+        existingCard.setCashLimit(dto.getCashLimit());
+        existingCard.setAvailableCreditLimit(dto.getCreditLimit());
+        existingCard.setAvailableCashLimit(dto.getCashLimit());
+        existingCard.setLastUpdateTime(LocalDateTime.now());
+
+        repository.update(existingCard);
+
+        logger.info("Card updated: {}", cardNumber);
     }
 }
 
