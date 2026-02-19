@@ -14,12 +14,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
@@ -27,12 +31,14 @@ import java.util.Optional;
 @Tag(name = "Card Management", description = "APIs for managing credit cards")
 public class CardController {
 
+    private static final Logger logger = LoggerFactory.getLogger(CardController.class);
     private final CardService service;
     private final CardNumberResolver cardNumberResolver;
 
     public CardController(CardService service, CardNumberResolver cardNumberResolver) {
         this.service = service;
         this.cardNumberResolver = cardNumberResolver;
+        logger.info("CardController initialized");
     }
 
     @GetMapping
@@ -41,7 +47,24 @@ public class CardController {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved list of cards")
     })
     public ResponseEntity<List<CardResponseDto>> getAll() {
-        return ResponseEntity.ok(service.getAllCards());
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("GET /api/cards - Retrieving all cards");
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            List<CardResponseDto> cards = service.getAllCards();
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("GET /api/cards - Successfully retrieved {} cards in {}ms", cards.size(), duration);
+            return ResponseEntity.ok(cards);
+        } catch (Exception e) {
+            logger.error("GET /api/cards - Error retrieving cards: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @GetMapping("/paginated")
@@ -52,7 +75,26 @@ public class CardController {
     public ResponseEntity<PageResponse<CardResponseDto>> getAllPaginated(
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(service.getAllCards(page, size));
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("GET /api/cards/paginated - Retrieving cards with page={}, size={}", page, size);
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            PageResponse<CardResponseDto> response = service.getAllCards(page, size);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("GET /api/cards/paginated - Successfully retrieved {} cards (page {}/{}, total {}) in {}ms", 
+                       response.getContent().size(), response.getPageNumber() + 1, 
+                       response.getTotalPages(), response.getTotalElements(), duration);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("GET /api/cards/paginated - Error retrieving paginated cards: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @GetMapping("/{cardIdentifier}")
@@ -64,14 +106,35 @@ public class CardController {
     public ResponseEntity<CardResponseDto> getByIdentifier(
             @Parameter(description = "Card identifier (plain number, masked number, or mask ID)") 
             @PathVariable String cardIdentifier) {
-        // Accept: plain card number, masked card number, or mask ID
-        Optional<Card> card = cardNumberResolver.resolveCard(cardIdentifier);
-        if (card.isEmpty()) {
-            throw new ResourceNotFoundException("Card not found: " + cardIdentifier);
-        }
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
         
-        CardResponseDto response = service.getByCardNumber(card.get().getCardNumber());
-        return ResponseEntity.ok(response);
+        logger.info("GET /api/cards/{} - Retrieving card by identifier", cardIdentifier);
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // Accept: plain card number, masked card number, or mask ID
+            Optional<Card> card = cardNumberResolver.resolveCard(cardIdentifier);
+            if (card.isEmpty()) {
+                logger.warn("GET /api/cards/{} - Card not found", cardIdentifier);
+                throw new ResourceNotFoundException("Card not found: " + cardIdentifier);
+            }
+            
+            CardResponseDto response = service.getByCardNumber(card.get().getCardNumber());
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("GET /api/cards/{} - Successfully retrieved card {} in {}ms", 
+                       cardIdentifier, card.get().getCardNumber(), duration);
+            return ResponseEntity.ok(response);
+        } catch (ResourceNotFoundException e) {
+            logger.warn("GET /api/cards/{} - Card not found: {}", cardIdentifier, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("GET /api/cards/{} - Error retrieving card: {}", cardIdentifier, e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @PutMapping("/{cardIdentifier}")
@@ -85,14 +148,36 @@ public class CardController {
             @Parameter(description = "Card identifier (plain number, masked number, or mask ID)") 
             @PathVariable String cardIdentifier, 
             @Valid @RequestBody UpdateCardDto dto) {
-        // Accept: plain card number, masked card number, or mask ID
-        Optional<Card> card = cardNumberResolver.resolveCard(cardIdentifier);
-        if (card.isEmpty()) {
-            throw new ResourceNotFoundException("Card not found: " + cardIdentifier);
-        }
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
         
-        service.updateCard(card.get().getCardNumber(), dto);
-        return ResponseEntity.ok().build();
+        logger.info("PUT /api/cards/{} - Updating card with data: creditLimit={}, cashLimit={}, expiryDate={}", 
+                   cardIdentifier, dto.getCreditLimit(), dto.getCashLimit(), dto.getExpiryDate());
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // Accept: plain card number, masked card number, or mask ID
+            Optional<Card> card = cardNumberResolver.resolveCard(cardIdentifier);
+            if (card.isEmpty()) {
+                logger.warn("PUT /api/cards/{} - Card not found for update", cardIdentifier);
+                throw new ResourceNotFoundException("Card not found: " + cardIdentifier);
+            }
+            
+            service.updateCard(card.get().getCardNumber(), dto);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("PUT /api/cards/{} - Successfully updated card {} in {}ms", 
+                       cardIdentifier, card.get().getCardNumber(), duration);
+            return ResponseEntity.ok().build();
+        } catch (ResourceNotFoundException e) {
+            logger.warn("PUT /api/cards/{} - Card not found for update: {}", cardIdentifier, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("PUT /api/cards/{} - Error updating card: {}", cardIdentifier, e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @PostMapping
@@ -102,8 +187,25 @@ public class CardController {
         @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
     public ResponseEntity<Void> create(@Valid @RequestBody CreateCardDto dto) {
-        service.createCard(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("POST /api/cards - Creating new card: creditLimit={}, cashLimit={}, expiryDate={}", 
+                   dto.getCreditLimit(), dto.getCashLimit(), dto.getExpiryDate());
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            service.createCard(dto);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("POST /api/cards - Successfully created card {} in {}ms", dto.getCardNumber(), duration);
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        } catch (Exception e) {
+            logger.error("POST /api/cards - Error creating card: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 }
 

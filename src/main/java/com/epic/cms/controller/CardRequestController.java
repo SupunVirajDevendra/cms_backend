@@ -11,6 +11,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -20,16 +23,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/card-requests")
 @Tag(name = "Card Request Management", description = "APIs for managing card requests")
 public class CardRequestController {
 
+    private static final Logger logger = LoggerFactory.getLogger(CardRequestController.class);
     private final CardRequestService cardRequestService;
 
     public CardRequestController(CardRequestService cardRequestService) {
         this.cardRequestService = cardRequestService;
+        logger.info("CardRequestController initialized");
     }
 
     @PostMapping
@@ -40,8 +46,27 @@ public class CardRequestController {
         @ApiResponse(responseCode = "404", description = "Card not found")
     })
     public ResponseEntity<Void> createRequest(@Valid @RequestBody CreateCardRequestDto dto) {
-        cardRequestService.createRequest(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("POST /api/card-requests - Creating {} request for card: {}", 
+                   dto.getRequestReasonCode(), dto.getCardIdentifier());
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            cardRequestService.createRequest(dto);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("POST /api/card-requests - Successfully created {} request for card {} in {}ms", 
+                       dto.getRequestReasonCode(), dto.getCardIdentifier(), duration);
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        } catch (Exception e) {
+            logger.error("POST /api/card-requests - Error creating {} request for card {}: {}", 
+                        dto.getRequestReasonCode(), dto.getCardIdentifier(), e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @PutMapping("/{id}/process")
@@ -55,8 +80,27 @@ public class CardRequestController {
             @Parameter(description = "Request ID") 
             @PathVariable Long id, 
             @Valid @RequestBody ActionDto action) {
-        cardRequestService.processRequest(id, action);
-        return ResponseEntity.ok().build();
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        String actionStr = Boolean.TRUE.equals(action.getApprove()) ? "APPROVE" : "REJECT";
+        logger.info("PUT /api/card-requests/{}/process - Processing request with action: {}", id, actionStr);
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            cardRequestService.processRequest(id, action);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("PUT /api/card-requests/{}/process - Successfully processed request with action: {} in {}ms", 
+                       id, actionStr, duration);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            logger.error("PUT /api/card-requests/{}/process - Error processing request with action {}: {}", 
+                        id, actionStr, e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @GetMapping
@@ -65,8 +109,25 @@ public class CardRequestController {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved list of requests")
     })
     public ResponseEntity<List<CardRequestResponseDto>> getAllRequests() {
-        List<CardRequestResponseDto> requests = cardRequestService.getAllRequests();
-        return ResponseEntity.ok(requests);
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("GET /api/card-requests - Retrieving all card requests");
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            List<CardRequestResponseDto> requests = cardRequestService.getAllRequests();
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("GET /api/card-requests - Successfully retrieved {} requests in {}ms", 
+                       requests.size(), duration);
+            return ResponseEntity.ok(requests);
+        } catch (Exception e) {
+            logger.error("GET /api/card-requests - Error retrieving requests: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @GetMapping("/paginated")
@@ -77,7 +138,26 @@ public class CardRequestController {
     public ResponseEntity<PageResponse<CardRequestResponseDto>> getAllRequestsPaginated(
             @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(cardRequestService.getAllRequests(page, size));
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("GET /api/card-requests/paginated - Retrieving requests with page={}, size={}", page, size);
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            PageResponse<CardRequestResponseDto> response = cardRequestService.getAllRequests(page, size);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("GET /api/card-requests/paginated - Successfully retrieved {} requests (page {}/{}, total {}) in {}ms", 
+                       response.getContent().size(), response.getPageNumber() + 1, 
+                       response.getTotalPages(), response.getTotalElements(), duration);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("GET /api/card-requests/paginated - Error retrieving paginated requests: {}", e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @GetMapping("/{id}")
@@ -89,8 +169,25 @@ public class CardRequestController {
     public ResponseEntity<CardRequestResponseDto> getRequestById(
             @Parameter(description = "Request ID") 
             @PathVariable Long id) {
-        CardRequestResponseDto request = cardRequestService.getRequestById(id);
-        return ResponseEntity.ok(request);
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.info("GET /api/card-requests/{} - Retrieving request by ID", id);
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            CardRequestResponseDto request = cardRequestService.getRequestById(id);
+            long duration = System.currentTimeMillis() - startTime;
+            
+            logger.info("GET /api/card-requests/{} - Successfully retrieved request {} (card: {}, type: {}) in {}ms", 
+                       id, request.getRequestId(), request.getCardNumber(), request.getRequestReasonCode(), duration);
+            return ResponseEntity.ok(request);
+        } catch (Exception e) {
+            logger.error("GET /api/card-requests/{} - Error retrieving request: {}", id, e.getMessage(), e);
+            throw e;
+        } finally {
+            MDC.clear();
+        }
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -98,12 +195,21 @@ public class CardRequestController {
     @ApiResponse(responseCode = "400", description = "Validation errors")
     public ResponseEntity<Map<String, String>> handleValidationExceptions(
             MethodArgumentNotValidException ex) {
+        String requestId = UUID.randomUUID().toString();
+        MDC.put("requestId", requestId);
+        
+        logger.warn("Validation error in request: {}", ex.getMessage());
+        
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach((error) -> {
             String fieldName = ((FieldError) error).getField();
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
+            logger.debug("Validation error - Field: {}, Error: {}", fieldName, errorMessage);
         });
+        
+        logger.warn("Returning {} validation errors", errors.size());
+        MDC.clear();
         return ResponseEntity.badRequest().body(errors);
     }
 }
