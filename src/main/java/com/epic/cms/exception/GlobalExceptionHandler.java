@@ -29,7 +29,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse response = new ErrorResponse("NOT_FOUND", ex.getMessage());
         MDC.clear();
-        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        return ResponseEntity.ok(response);
     }
 
     @ExceptionHandler(BusinessException.class)
@@ -41,7 +41,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse response = new ErrorResponse("BUSINESS_ERROR", ex.getMessage());
         MDC.clear();
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return ResponseEntity.ok(response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse response = new ErrorResponse("INVALID_ARGUMENT", ex.getMessage());
         MDC.clear();
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return ResponseEntity.ok(response);
     }
 
     @ExceptionHandler(org.springframework.dao.DataAccessException.class)
@@ -65,7 +65,7 @@ public class GlobalExceptionHandler {
         
         ErrorResponse response = new ErrorResponse("DATABASE_ERROR", "Database operation failed");
         MDC.clear();
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.ok(response);
     }
 
     @ExceptionHandler(Exception.class)
@@ -77,6 +77,6 @@ public class GlobalExceptionHandler {
         
         ErrorResponse response = new ErrorResponse("INTERNAL_ERROR", "Unexpected system error occurred");
         MDC.clear();
-        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        return ResponseEntity.ok(response);
     }
 }
