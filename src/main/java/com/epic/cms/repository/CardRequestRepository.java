@@ -69,4 +69,13 @@ public class CardRequestRepository {
                 cardRequest.getRequestId()
         );
     }
+
+    public List<CardRequest> findPendingRequestsByCardNumber(String cardNumber) {
+        String sql = """
+            SELECT * FROM card_request 
+            WHERE card_number = ? AND status_code = 'PENDING'
+            ORDER BY create_time DESC
+        """;
+        return jdbcTemplate.query(sql, rowMapper, cardNumber);
+    }
 }

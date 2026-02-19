@@ -48,6 +48,19 @@ public class CardRequestServiceImpl implements CardRequestService {
         Optional<Card> cardOpt = cardNumberResolver.resolveCard(dto.getCardIdentifier());
         Card card = cardOpt.orElseThrow(() -> new ResourceNotFoundException("Card not found: " + dto.getCardIdentifier()));
 
+        // Check for existing pending requests of the same type
+        List<CardRequest> existingPendingRequests = cardRequestRepository.findPendingRequestsByCardNumber(card.getCardNumber());
+        
+        // Check if there's already a pending request of the same type
+        boolean hasSameTypePending = existingPendingRequests.stream()
+                .anyMatch(req -> req.getRequestReasonCode().equals(dto.getRequestReasonCode()));
+        
+        if (hasSameTypePending) {
+            throw new BusinessException("Cannot create request: There is already a pending " + 
+                    ("ACTI".equals(dto.getRequestReasonCode()) ? "activation" : "closure") + 
+                    " request for this card");
+        }
+
         // Business rules based on request type
         if ("CDCL".equals(dto.getRequestReasonCode())) {
             // For card close, check if available_credit_limit == credit_limit
@@ -66,8 +79,9 @@ public class CardRequestServiceImpl implements CardRequestService {
 
         cardRequestRepository.save(cardRequest);
 
-        logger.info("Card request created: {} for card: {} with type: {}", 
-                   dto.getRequestReasonCode(), card.getCardNumber(), dto.getRequestReasonCode());
+        logger.info("Card request created: {} for card: {} with type: {}. Existing pending requests: {}", 
+                   dto.getRequestReasonCode(), card.getCardNumber(), dto.getRequestReasonCode(), 
+                   existingPendingRequests.size());
     }
 
     @Override
