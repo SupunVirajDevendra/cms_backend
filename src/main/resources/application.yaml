@@ -35,7 +35,8 @@ logging:
 cms:
   security:
     encryption:
-      key: "a8F3kLm9PqR2sT7vXyZ1w4U6nB8cD0eF" # 16/24/32 characters for AES
+      key: "9fK3xLm8PqR2sT7vXyZ1w4U6nB8cD0eF" # MUST match VITE_ENCRYPTION_KEY
+      salt: "cms-salt-2024" # MUST match VITE_ENCRYPTION_SALT
       algorithm: "AES"
       transformation: "AES/ECB/PKCS5Padding"
 

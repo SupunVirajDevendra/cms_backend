@@ -3,8 +3,10 @@ package com.epic.cms.controller;
 import com.epic.cms.dto.ActionDto;
 import com.epic.cms.dto.CardRequestResponseDto;
 import com.epic.cms.dto.CreateCardRequestDto;
+import com.epic.cms.dto.EncryptedRequest;
 import com.epic.cms.dto.PageResponse;
 import com.epic.cms.service.CardRequestService;
+import com.epic.cms.service.PayloadDecryptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -32,9 +34,11 @@ public class CardRequestController {
 
     private static final Logger logger = LoggerFactory.getLogger(CardRequestController.class);
     private final CardRequestService cardRequestService;
+    private final PayloadDecryptionService decryptionService;
 
-    public CardRequestController(CardRequestService cardRequestService) {
+    public CardRequestController(CardRequestService cardRequestService, PayloadDecryptionService decryptionService) {
         this.cardRequestService = cardRequestService;
+        this.decryptionService = decryptionService;
         logger.info("CardRequestController initialized");
     }
 
@@ -45,15 +49,19 @@ public class CardRequestController {
         @ApiResponse(responseCode = "400", description = "Invalid input data"),
         @ApiResponse(responseCode = "404", description = "Card not found")
     })
-    public ResponseEntity<Void> createRequest(@Valid @RequestBody CreateCardRequestDto dto) {
+    public ResponseEntity<Void> createRequest(@Valid @RequestBody EncryptedRequest encryptedRequest) {
         String requestId = UUID.randomUUID().toString();
         MDC.put("requestId", requestId);
         
-        logger.info("POST /api/card-requests - Creating {} request for card: {}", 
-                   dto.getRequestReasonCode(), dto.getCardIdentifier());
+        logger.info("POST /api/card-requests - Creating card request from encrypted payload");
         long startTime = System.currentTimeMillis();
         
         try {
+            CreateCardRequestDto dto = decryptionService.decryptToObject(encryptedRequest.getPayload(), CreateCardRequestDto.class);
+            
+            logger.info("POST /api/card-requests - Decrypted request data: {} request for card: {}", 
+                       dto.getRequestReasonCode(), dto.getCardIdentifier());
+            
             cardRequestService.createRequest(dto);
             long duration = System.currentTimeMillis() - startTime;
             
@@ -61,9 +69,8 @@ public class CardRequestController {
                        dto.getRequestReasonCode(), dto.getCardIdentifier(), duration);
             return ResponseEntity.status(HttpStatus.CREATED).build();
         } catch (Exception e) {
-            logger.error("POST /api/card-requests - Error creating {} request for card {}: {}", 
-                        dto.getRequestReasonCode(), dto.getCardIdentifier(), e.getMessage(), e);
-            throw e;
+            logger.error("POST /api/card-requests - Error creating card request: {}", e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
         } finally {
             MDC.clear();
         }
@@ -79,15 +86,19 @@ public class CardRequestController {
     public ResponseEntity<Void> processRequest(
             @Parameter(description = "Request ID") 
             @PathVariable Long id, 
-            @Valid @RequestBody ActionDto action) {
+            @Valid @RequestBody EncryptedRequest encryptedRequest) {
         String requestId = UUID.randomUUID().toString();
         MDC.put("requestId", requestId);
         
-        String actionStr = Boolean.TRUE.equals(action.getApprove()) ? "APPROVE" : "REJECT";
-        logger.info("PUT /api/card-requests/{}/process - Processing request with action: {}", id, actionStr);
+        logger.info("PUT /api/card-requests/{}/process - Processing request from encrypted payload", id);
         long startTime = System.currentTimeMillis();
         
         try {
+            ActionDto action = decryptionService.decryptToObject(encryptedRequest.getPayload(), ActionDto.class);
+            
+            String actionStr = Boolean.TRUE.equals(action.getApprove()) ? "APPROVE" : "REJECT";
+            logger.info("PUT /api/card-requests/{}/process - Decrypted action: {}", id, actionStr);
+            
             cardRequestService.processRequest(id, action);
             long duration = System.currentTimeMillis() - startTime;
             
@@ -95,9 +106,8 @@ public class CardRequestController {
                        id, actionStr, duration);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
-            logger.error("PUT /api/card-requests/{}/process - Error processing request with action {}: {}", 
-                        id, actionStr, e.getMessage(), e);
-            throw e;
+            logger.error("PUT /api/card-requests/{}/process - Error processing request: {}", id, e.getMessage(), e);
+            return ResponseEntity.badRequest().build();
         } finally {
             MDC.clear();
         }

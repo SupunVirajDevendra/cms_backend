@@ -2,11 +2,13 @@ package com.epic.cms.controller;
 
 import com.epic.cms.dto.CardResponseDto;
 import com.epic.cms.dto.CreateCardDto;
+import com.epic.cms.dto.EncryptedRequest;
 import com.epic.cms.dto.PageResponse;
 import com.epic.cms.dto.UpdateCardDto;
 import com.epic.cms.exception.ResourceNotFoundException;
 import com.epic.cms.model.Card;
 import com.epic.cms.service.CardService;
+import com.epic.cms.service.PayloadDecryptionService;
 import com.epic.cms.util.CardNumberResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,10 +36,12 @@ public class CardController {
     private static final Logger logger = LoggerFactory.getLogger(CardController.class);
     private final CardService service;
     private final CardNumberResolver cardNumberResolver;
+    private final PayloadDecryptionService decryptionService;
 
-    public CardController(CardService service, CardNumberResolver cardNumberResolver) {
+    public CardController(CardService service, CardNumberResolver cardNumberResolver, PayloadDecryptionService decryptionService) {
         this.service = service;
         this.cardNumberResolver = cardNumberResolver;
+        this.decryptionService = decryptionService;
         logger.info("CardController initialized");
     }
 
@@ -147,15 +151,19 @@ public class CardController {
     public ResponseEntity<Void> update(
             @Parameter(description = "Card identifier (plain number, masked number, or mask ID)") 
             @PathVariable String cardIdentifier, 
-            @Valid @RequestBody UpdateCardDto dto) {
+            @Valid @RequestBody EncryptedRequest encryptedRequest) {
         String requestId = UUID.randomUUID().toString();
         MDC.put("requestId", requestId);
         
-        logger.info("PUT /api/cards/{} - Updating card with data: creditLimit={}, cashLimit={}, expiryDate={}", 
-                   cardIdentifier, dto.getCreditLimit(), dto.getCashLimit(), dto.getExpiryDate());
+        logger.info("PUT /api/cards/{} - Updating card from encrypted payload", cardIdentifier);
         long startTime = System.currentTimeMillis();
         
         try {
+            UpdateCardDto dto = decryptionService.decryptToObject(encryptedRequest.getPayload(), UpdateCardDto.class);
+            
+            logger.info("PUT /api/cards/{} - Decrypted update data: creditLimit={}, cashLimit={}, expiryDate={}", 
+                       cardIdentifier, dto.getCreditLimit(), dto.getCashLimit(), dto.getExpiryDate());
+            
             // Accept: plain card number, masked card number, or mask ID
             Optional<Card> card = cardNumberResolver.resolveCard(cardIdentifier);
             if (card.isEmpty()) {
@@ -174,7 +182,7 @@ public class CardController {
             throw e;
         } catch (Exception e) {
             logger.error("PUT /api/cards/{} - Error updating card: {}", cardIdentifier, e.getMessage(), e);
-            throw e;
+            return ResponseEntity.badRequest().build();
         } finally {
             MDC.clear();
         }
@@ -186,15 +194,19 @@ public class CardController {
         @ApiResponse(responseCode = "201", description = "Successfully created card"),
         @ApiResponse(responseCode = "400", description = "Invalid input data")
     })
-    public ResponseEntity<Void> create(@Valid @RequestBody CreateCardDto dto) {
+    public ResponseEntity<Void> create(@Valid @RequestBody EncryptedRequest encryptedRequest) {
         String requestId = UUID.randomUUID().toString();
         MDC.put("requestId", requestId);
         
-        logger.info("POST /api/cards - Creating new card: creditLimit={}, cashLimit={}, expiryDate={}", 
-                   dto.getCreditLimit(), dto.getCashLimit(), dto.getExpiryDate());
+        logger.info("POST /api/cards - Creating new card from encrypted payload");
         long startTime = System.currentTimeMillis();
         
         try {
+            CreateCardDto dto = decryptionService.decryptToObject(encryptedRequest.getPayload(), CreateCardDto.class);
+            
+            logger.info("POST /api/cards - Decrypted card data: creditLimit={}, cashLimit={}, expiryDate={", 
+                       dto.getCreditLimit(), dto.getCashLimit(), dto.getExpiryDate());
+            
             service.createCard(dto);
             long duration = System.currentTimeMillis() - startTime;
             
@@ -202,7 +214,7 @@ public class CardController {
             return ResponseEntity.status(HttpStatus.CREATED).build();
         } catch (Exception e) {
             logger.error("POST /api/cards - Error creating card: {}", e.getMessage(), e);
-            throw e;
+            return ResponseEntity.badRequest().build();
         } finally {
             MDC.clear();
         }
