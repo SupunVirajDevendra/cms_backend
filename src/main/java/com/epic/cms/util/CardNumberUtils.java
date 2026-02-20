@@ -9,11 +9,11 @@ public class CardNumberUtils {
     private static final String MASK_CHARACTER = "*";
     
     public static String maskCardNumber(String cardNumber) {
-        if (cardNumber == null || cardNumber.length() < 8) {
+        if (cardNumber == null || cardNumber.length() < 10) {
             return cardNumber;
         }
         
-        int firstDigits = 4;
+        int firstDigits = 6;
         int lastDigits = 4;
         int middleLength = cardNumber.length() - firstDigits - lastDigits;
         

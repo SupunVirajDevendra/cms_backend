@@ -115,12 +115,12 @@ public class CardEncryptionUtils {
     }
     
     /**
-     * Masks card number for logging purposes (show only first 4 and last 4 digits)
+     * Masks card number for logging purposes (show only first 6 and last 4 digits)
      */
     private String maskCardNumber(String cardNumber) {
-        if (cardNumber == null || cardNumber.length() < 8) {
+        if (cardNumber == null || cardNumber.length() < 10) {
             return "****";
         }
-        return cardNumber.substring(0, 4) + "****" + cardNumber.substring(cardNumber.length() - 4);
+        return cardNumber.substring(0, 6) + "****" + cardNumber.substring(cardNumber.length() - 4);
     }
 }
