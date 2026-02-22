@@ -41,7 +41,7 @@ CREATE TABLE card_request_type (
 -- ===============================
 
 CREATE TABLE card (
-                                    card_number VARCHAR(20) PRIMARY KEY,
+                                    card_number VARCHAR(255) PRIMARY KEY,
     expiry_date DATE NOT NULL,
     status_code VARCHAR(20) NOT NULL,
     credit_limit NUMERIC(15,2) NOT NULL CHECK (credit_limit >= 0),
@@ -61,7 +61,7 @@ CREATE TABLE card (
 
 CREATE TABLE card_request (
                                             request_id SERIAL PRIMARY KEY,
-                                            card_number VARCHAR(20) NOT NULL,
+                                            card_number VARCHAR(255) NOT NULL,
     request_reason_code VARCHAR(20) NOT NULL,
     status_code VARCHAR(20) NOT NULL,
     create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

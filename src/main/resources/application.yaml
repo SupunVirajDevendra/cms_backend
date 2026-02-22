@@ -39,6 +39,8 @@ cms:
       salt: "cms-salt-2024" # MUST match VITE_ENCRYPTION_SALT
       algorithm: "AES"
       transformation: "AES/ECB/PKCS5Padding"
+    payload:
+      transformation: "AES/GCM/NoPadding"
 
 # SpringDoc OpenAPI Configuration
 springdoc:

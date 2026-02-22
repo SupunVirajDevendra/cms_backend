@@ -29,6 +29,9 @@ public class PayloadDecryptionService {
     @Value("${cms.security.encryption.salt:cms-salt-2024}")
     private String salt;
     
+    @Value("${cms.security.payload.transformation:AES/GCM/NoPadding}")
+    private String transformation;
+    
     private final ObjectMapper objectMapper;
     
     public PayloadDecryptionService(ObjectMapper objectMapper) {
@@ -65,8 +68,8 @@ public class PayloadDecryptionService {
             
             logger.debug("decrypt() - Key derived successfully");
             
-            // 4. Decrypt (AES/GCM/NoPadding)
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            // 4. Decrypt (Using transformation from config)
+            Cipher cipher = Cipher.getInstance(transformation);
             GCMParameterSpec gcmSpec = new GCMParameterSpec(128, iv); // 128-bit authentication tag length
             cipher.init(Cipher.DECRYPT_MODE, aesKey, gcmSpec);
             byte[] plainText = cipher.doFinal(cipherText);

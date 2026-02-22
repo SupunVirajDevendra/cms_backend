@@ -9,6 +9,7 @@ import com.epic.cms.mapper.DtoMapper;
 import com.epic.cms.model.Card;
 import com.epic.cms.repository.CardRepository;
 import com.epic.cms.service.CardService;
+import com.epic.cms.service.CardEncryptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -25,11 +26,13 @@ public class CardServiceImpl implements CardService {
 
     private final CardRepository repository;
     private final DtoMapper dtoMapper;
+    private final CardEncryptionService encryptionService;
     private static final Logger logger = LoggerFactory.getLogger(CardServiceImpl.class);
 
-    public CardServiceImpl(CardRepository repository, DtoMapper dtoMapper) {
+    public CardServiceImpl(CardRepository repository, DtoMapper dtoMapper, CardEncryptionService encryptionService) {
         this.repository = repository;
         this.dtoMapper = dtoMapper;
+        this.encryptionService = encryptionService;
         logger.info("CardServiceImpl initialized");
     }
 
@@ -145,7 +148,7 @@ public class CardServiceImpl implements CardService {
             }
 
             Card card = Card.builder()
-                    .cardNumber(dto.getCardNumber())
+                    .cardNumber(encryptionService.encrypt(dto.getCardNumber()))
                     .expiryDate(dto.getExpiryDate())
                     .statusCode("IACT")
                     .creditLimit(dto.getCreditLimit())
@@ -194,6 +197,7 @@ public class CardServiceImpl implements CardService {
             String oldCashLimit = existingCard.getCashLimit().toString();
 
             existingCard.setExpiryDate(dto.getExpiryDate());
+            existingCard.setCardNumber(cardNumber); // Keep plain for the object, repo handles encryption
             existingCard.setCreditLimit(dto.getCreditLimit());
             existingCard.setCashLimit(dto.getCashLimit());
             existingCard.setAvailableCreditLimit(dto.getCreditLimit());

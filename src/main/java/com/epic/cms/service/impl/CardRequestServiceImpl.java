@@ -48,6 +48,8 @@ public class CardRequestServiceImpl implements CardRequestService {
         Optional<Card> cardOpt = cardNumberResolver.resolveCard(dto.getCardIdentifier());
         Card card = cardOpt.orElseThrow(() -> new ResourceNotFoundException("Card not found: " + dto.getCardIdentifier()));
 
+        logger.info("createRequest() - Resolved card: {}, original identifier: {}", card.getCardNumber(), dto.getCardIdentifier());
+
         // Check for existing pending requests of the same type
         List<CardRequest> existingPendingRequests = cardRequestRepository.findPendingRequestsByCardNumber(card.getCardNumber());
         

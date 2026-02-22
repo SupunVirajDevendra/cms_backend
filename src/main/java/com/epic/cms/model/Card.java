@@ -9,8 +9,7 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class Card {
-    private String cardNumber; // Plain text (for internal use)
-    private String encryptedCardNumber; // Encrypted (for database storage)
+    private String cardNumber; // Encrypted in DB, plain text in memory
     private LocalDate expiryDate;
     private String statusCode;
     private BigDecimal creditLimit;

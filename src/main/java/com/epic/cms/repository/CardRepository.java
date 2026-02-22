@@ -1,5 +1,6 @@
 package com.epic.cms.repository;
 
+import com.epic.cms.service.CardEncryptionService;
 import com.epic.cms.mapper.CardRowMapper;
 import com.epic.cms.model.Card;
 import org.slf4j.Logger;
@@ -18,10 +19,12 @@ public class CardRepository {
     private static final Logger logger = LoggerFactory.getLogger(CardRepository.class);
     private final JdbcTemplate jdbcTemplate;
     private final CardRowMapper rowMapper;
+    private final CardEncryptionService encryptionService;
 
-    public CardRepository(JdbcTemplate jdbcTemplate, CardRowMapper rowMapper) {
+    public CardRepository(JdbcTemplate jdbcTemplate, CardRowMapper rowMapper, CardEncryptionService encryptionService) {
         this.jdbcTemplate = jdbcTemplate;
         this.rowMapper = rowMapper;
+        this.encryptionService = encryptionService;
         logger.info("CardRepository initialized");
     }
 
@@ -35,6 +38,10 @@ public class CardRepository {
         try {
             String sql = "SELECT * FROM card";
             List<Card> result = jdbcTemplate.query(sql, rowMapper);
+            
+            // Decrypt card numbers
+            result.forEach(this::decryptCardNumber);
+
             long duration = System.currentTimeMillis() - startTime;
             
             logger.debug("findAll() - Query executed in {}ms, returned {} records", duration, result.size());
@@ -58,6 +65,10 @@ public class CardRepository {
         try {
             String sql = "SELECT * FROM card ORDER BY card_number LIMIT ? OFFSET ?";
             List<Card> result = jdbcTemplate.query(sql, rowMapper, limit, offset);
+
+            // Decrypt card numbers
+            result.forEach(this::decryptCardNumber);
+
             long duration = System.currentTimeMillis() - startTime;
             
             logger.debug("findAllWithPagination(offset={}, limit={}) - Query executed in {}ms, returned {} records", 
@@ -99,13 +110,21 @@ public class CardRepository {
         String operationId = UUID.randomUUID().toString();
         MDC.put("operationId", operationId);
         
+        // Encrypt the plain text card number to search in the database
+        String encryptedCardNumber = encryptionService.encrypt(cardNumber);
+
         logger.debug("findByCardNumber(cardNumber={}) - Executing query", cardNumber);
         long startTime = System.currentTimeMillis();
         
         try {
             String sql = "SELECT * FROM card WHERE card_number = ?";
-            List<Card> cards = jdbcTemplate.query(sql, rowMapper, cardNumber);
+            List<Card> cards = jdbcTemplate.query(sql, rowMapper, encryptedCardNumber);
+            
             Optional<Card> result = cards.isEmpty() ? Optional.empty() : Optional.of(cards.get(0));
+            
+            // Decrypt the retrieved card number (or just set the original plain text)
+            result.ifPresent(card -> card.setCardNumber(cardNumber));
+
             long duration = System.currentTimeMillis() - startTime;
             
             logger.debug("findByCardNumber(cardNumber={}) - Query executed in {}ms, found: {}", 
@@ -131,8 +150,13 @@ public class CardRepository {
         String operationId = UUID.randomUUID().toString();
         MDC.put("operationId", operationId);
         
+        // Ensure card number is encrypted before saving
+        String encryptedCardNumber = isEncrypted(card.getCardNumber()) 
+            ? card.getCardNumber() 
+            : encryptionService.encrypt(card.getCardNumber());
+
         logger.debug("save(cardNumber={}) - Executing INSERT", card.getCardNumber());
-        logger.debug("save(cardNumber={}) - Card data: expiryDate={}, status={}, creditLimit={}, cashLimit={}", 
+        logger.debug("save(cardNumber={}) - Card data: expiry_date={}, status_code={}, credit_limit={}, cash_limit={}", 
                     card.getCardNumber(), card.getExpiryDate(), card.getStatusCode(), 
                     card.getCreditLimit(), card.getCashLimit());
         long startTime = System.currentTimeMillis();
@@ -148,14 +172,14 @@ public class CardRepository {
             """;
 
             int rowsAffected = jdbcTemplate.update(sql,
-                    card.getCardNumber(),
-                    card.getExpiryDate(),
+                    encryptedCardNumber,
+                    java.sql.Date.valueOf(card.getExpiryDate()),
                     card.getStatusCode(),
                     card.getCreditLimit(),
                     card.getCashLimit(),
                     card.getAvailableCreditLimit(),
                     card.getAvailableCashLimit(),
-                    card.getLastUpdateTime()
+                    java.sql.Timestamp.valueOf(card.getLastUpdateTime())
             );
             
             long duration = System.currentTimeMillis() - startTime;
@@ -180,7 +204,7 @@ public class CardRepository {
         MDC.put("operationId", operationId);
         
         logger.debug("update(cardNumber={}) - Executing UPDATE", card.getCardNumber());
-        logger.debug("update(cardNumber={}) - Update data: expiryDate={}, status={}, creditLimit={}, cashLimit={}", 
+        logger.debug("update(cardNumber={}) - Update data: expiry_date={}, status_code={}, credit_limit={}, cash_limit={}", 
                     card.getCardNumber(), card.getExpiryDate(), card.getStatusCode(), 
                     card.getCreditLimit(), card.getCashLimit());
         long startTime = System.currentTimeMillis();
@@ -198,15 +222,18 @@ public class CardRepository {
                 WHERE card_number = ?
             """;
 
+            // Encrypt card number for WHERE clause
+            String encryptedCardNumber = encryptionService.encrypt(card.getCardNumber());
+
             int rowsAffected = jdbcTemplate.update(sql,
-                    card.getExpiryDate(),
+                    java.sql.Date.valueOf(card.getExpiryDate()),
                     card.getStatusCode(),
                     card.getCreditLimit(),
                     card.getCashLimit(),
                     card.getAvailableCreditLimit(),
                     card.getAvailableCashLimit(),
-                    card.getLastUpdateTime(),
-                    card.getCardNumber()
+                    java.sql.Timestamp.valueOf(card.getLastUpdateTime()),
+                    encryptedCardNumber
             );
             
             long duration = System.currentTimeMillis() - startTime;
@@ -226,5 +253,22 @@ public class CardRepository {
         } finally {
             MDC.clear();
         }
+    }
+
+    private void decryptCardNumber(Card card) {
+        if (card.getCardNumber() != null && isEncrypted(card.getCardNumber())) {
+            try {
+                card.setCardNumber(encryptionService.decrypt(card.getCardNumber()));
+            } catch (Exception e) {
+                logger.error("Error decrypting card number: {}", card.getCardNumber(), e);
+            }
+        }
+    }
+
+    private boolean isEncrypted(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        return text.length() > 20 || text.matches(".*[a-zA-Z+/=].*");
     }
 }

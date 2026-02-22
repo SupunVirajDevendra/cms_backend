@@ -76,32 +76,29 @@ public class CardNumberResolver {
 
         String trimmedInput = cardInput.trim();
 
-        // Try plain card number first (for backward compatibility)
+        // 1. Try plain card number first (the service already encrypts it for lookup)
         try {
             Optional<Card> card = cardRepository.findByCardNumber(trimmedInput);
             if (card.isPresent()) {
                 return card;
             }
         } catch (Exception e) {
-            // Continue to other methods
+            // Continue
         }
 
-        // Try masked card number
-        if (trimmedInput.contains("*")) {
-            Optional<Card> card = findByMaskedCardNumber(trimmedInput);
-            if (card.isPresent()) {
-                return card;
-            }
-        }
-
-        // Try mask ID
+        // 2. Try mask ID
         if (trimmedInput.startsWith("MASK_")) {
-            Optional<Card> card = findByMaskId(trimmedInput);
-            if (card.isPresent()) {
-                return card;
-            }
+            return findByMaskId(trimmedInput);
         }
 
+        // 3. Try masked card number
+        if (trimmedInput.contains("*")) {
+            return findByMaskedCardNumber(trimmedInput);
+        }
+
+        // 4. Final attempt: Maybe it's already an encrypted string from the DB
+        // But we shouldn't really have those in the input unless it's a bug
+        
         return Optional.empty();
     }
 }

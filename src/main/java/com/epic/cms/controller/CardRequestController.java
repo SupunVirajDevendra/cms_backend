@@ -59,6 +59,11 @@ public class CardRequestController {
         try {
             CreateCardRequestDto dto = decryptionService.decryptToObject(encryptedRequest.getPayload(), CreateCardRequestDto.class);
             
+            if (dto == null) {
+                logger.error("POST /api/card-requests - Decrypted DTO is null");
+                return ResponseEntity.badRequest().build();
+            }
+
             logger.info("POST /api/card-requests - Decrypted request data: {} request for card: {}", 
                        dto.getRequestReasonCode(), dto.getCardIdentifier());
             

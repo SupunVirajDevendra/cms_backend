@@ -13,6 +13,12 @@ public class CardNumberUtils {
             return cardNumber;
         }
         
+        // If it looks like Base64/encrypted (contains letters, +, /, = and is long), don't mask it
+        // because masking an encrypted string is useless and makes it un-decryptable later if needed
+        if (cardNumber.length() > 20 || cardNumber.matches(".*[a-zA-Z+/=].*")) {
+            return cardNumber;
+        }
+        
         int firstDigits = 6;
         int lastDigits = 4;
         int middleLength = cardNumber.length() - firstDigits - lastDigits;

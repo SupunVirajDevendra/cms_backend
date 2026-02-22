@@ -5,6 +5,9 @@ import com.epic.cms.dto.CardRequestResponseDto;
 import com.epic.cms.model.Card;
 import com.epic.cms.model.CardRequest;
 import com.epic.cms.util.CardNumberUtils;
+import com.epic.cms.service.CardEncryptionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -13,14 +16,54 @@ import java.util.stream.Collectors;
 @Component
 public class DtoMapper {
     
+    private static final Logger logger = LoggerFactory.getLogger(DtoMapper.class);
+    
+    private final CardEncryptionService encryptionService;
+
+    public DtoMapper(CardEncryptionService encryptionService) {
+        this.encryptionService = encryptionService;
+    }
+    
+    private boolean isEncrypted(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+        // Card numbers are typically 16-19 digits. 
+        // Encrypted strings (Base64) often contain characters like '+', '/', '=' and are usually longer.
+        // Also check if it contains any non-digit characters (other than potential masking which shouldn't be here yet)
+        return text.length() > 20 || text.matches(".*[a-zA-Z+/=].*");
+    }
+
     public CardResponseDto toCardResponseDto(Card card) {
         if (card == null) {
             return null;
         }
         
         CardResponseDto dto = new CardResponseDto();
-        dto.setCardNumber(CardNumberUtils.maskCardNumber(card.getCardNumber())); // Set masked number as cardNumber
-        dto.setMaskId(CardNumberUtils.generateMaskId(card.getCardNumber()));
+        String plainCardNumber = card.getCardNumber();
+        
+        // Robust check for encrypted or masked data
+        if (isEncrypted(plainCardNumber)) {
+            try {
+                plainCardNumber = encryptionService.decrypt(plainCardNumber);
+            } catch (Exception e) {
+                logger.error("Failed to decrypt card number for masking: {}", plainCardNumber, e);
+            }
+        }
+        
+        // If it's still encrypted/Base64 after decryption attempt, we shouldn't mask it
+        // This prevents "Qh4Zfk**********************************er4="
+        String maskedNumber;
+        if (isEncrypted(plainCardNumber)) {
+            maskedNumber = plainCardNumber;
+        } else if (plainCardNumber != null && plainCardNumber.contains("*")) {
+            maskedNumber = plainCardNumber;
+        } else {
+            maskedNumber = CardNumberUtils.maskCardNumber(plainCardNumber);
+        }
+        
+        dto.setCardNumber(maskedNumber); 
+        dto.setMaskId(CardNumberUtils.generateMaskId(plainCardNumber));
         dto.setExpiryDate(card.getExpiryDate());
         dto.setStatusCode(card.getStatusCode());
         dto.setCreditLimit(card.getCreditLimit());
@@ -45,8 +88,28 @@ public class DtoMapper {
         
         CardRequestResponseDto dto = new CardRequestResponseDto();
         dto.setRequestId(cardRequest.getRequestId());
-        dto.setCardNumber(CardNumberUtils.maskCardNumber(cardRequest.getCardNumber())); // Set masked number as cardNumber
-        dto.setMaskId(CardNumberUtils.generateMaskId(cardRequest.getCardNumber()));
+        
+        String plainCardNumber = cardRequest.getCardNumber();
+        if (isEncrypted(plainCardNumber)) {
+            try {
+                plainCardNumber = encryptionService.decrypt(plainCardNumber);
+            } catch (Exception e) {
+                logger.error("Failed to decrypt card request number for masking: {}", plainCardNumber, e);
+            }
+        }
+
+        // If it's still encrypted/Base64 after decryption attempt, we shouldn't mask it
+        String maskedNumber;
+        if (isEncrypted(plainCardNumber)) {
+            maskedNumber = plainCardNumber;
+        } else if (plainCardNumber != null && plainCardNumber.contains("*")) {
+            maskedNumber = plainCardNumber;
+        } else {
+            maskedNumber = CardNumberUtils.maskCardNumber(plainCardNumber);
+        }
+
+        dto.setCardNumber(maskedNumber); 
+        dto.setMaskId(CardNumberUtils.generateMaskId(plainCardNumber));
         dto.setRequestReasonCode(cardRequest.getRequestReasonCode());
         dto.setStatusCode(cardRequest.getStatusCode());
         dto.setCreateTime(cardRequest.getCreateTime());
