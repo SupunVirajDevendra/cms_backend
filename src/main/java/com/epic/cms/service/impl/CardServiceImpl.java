@@ -46,6 +46,7 @@ public class CardServiceImpl implements CardService {
         
         try {
             List<Card> cards = repository.findAll();
+            decryptCardNumbers(cards);
             List<CardResponseDto> result = dtoMapper.toCardResponseDtoList(cards);
             long duration = System.currentTimeMillis() - startTime;
             
@@ -71,6 +72,7 @@ public class CardServiceImpl implements CardService {
         try {
             int offset = page * size;
             List<Card> cards = repository.findAllWithPagination(offset, size);
+            decryptCardNumbers(cards);
             long totalElements = repository.countAllCards();
             
             int totalPages = (int) Math.ceil((double) totalElements / size);
@@ -109,8 +111,11 @@ public class CardServiceImpl implements CardService {
         long startTime = System.currentTimeMillis();
         
         try {
-            Card card = repository.findByCardNumber(cardNumber)
+            String encryptedCardNumber = encryptionService.encrypt(cardNumber);
+            Card card = repository.findByCardNumber(encryptedCardNumber)
                     .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardNumber));
+            
+            card.setCardNumber(encryptionService.decrypt(card.getCardNumber()));
             
             CardResponseDto result = dtoMapper.toCardResponseDto(card);
             long duration = System.currentTimeMillis() - startTime;
@@ -141,14 +146,15 @@ public class CardServiceImpl implements CardService {
         long startTime = System.currentTimeMillis();
 
         try {
-            // Check if card already exists
-            if (repository.findByCardNumber(dto.getCardNumber()).isPresent()) {
+            String encryptedCardNumber = encryptionService.encrypt(dto.getCardNumber());
+            
+            if (repository.findByCardNumber(encryptedCardNumber).isPresent()) {
                 logger.warn("createCard(cardNumber={}) - Card already exists", dto.getCardNumber());
                 throw new IllegalArgumentException("Card with number " + dto.getCardNumber() + " already exists");
             }
 
             Card card = Card.builder()
-                    .cardNumber(encryptionService.encrypt(dto.getCardNumber()))
+                    .cardNumber(encryptedCardNumber)
                     .expiryDate(dto.getExpiryDate())
                     .statusCode("IACT")
                     .creditLimit(dto.getCreditLimit())
@@ -186,18 +192,19 @@ public class CardServiceImpl implements CardService {
         long startTime = System.currentTimeMillis();
 
         try {
-            Card existingCard = repository.findByCardNumber(cardNumber)
+            String encryptedCardNumber = encryptionService.encrypt(cardNumber);
+            
+            Card existingCard = repository.findByCardNumber(encryptedCardNumber)
                     .orElseThrow(() -> new ResourceNotFoundException("Card not found: " + cardNumber));
 
             logger.debug("updateCard(cardNumber={}) - Current card status: {}", cardNumber, existingCard.getStatusCode());
             
-            // Store old values for audit
             String oldExpiryDate = existingCard.getExpiryDate().toString();
             String oldCreditLimit = existingCard.getCreditLimit().toString();
             String oldCashLimit = existingCard.getCashLimit().toString();
 
             existingCard.setExpiryDate(dto.getExpiryDate());
-            existingCard.setCardNumber(cardNumber); // Keep plain for the object, repo handles encryption
+            existingCard.setCardNumber(encryptedCardNumber);
             existingCard.setCreditLimit(dto.getCreditLimit());
             existingCard.setCashLimit(dto.getCashLimit());
             existingCard.setAvailableCreditLimit(dto.getCreditLimit());
@@ -222,5 +229,14 @@ public class CardServiceImpl implements CardService {
             MDC.clear();
         }
     }
-}
 
+    private void decryptCardNumbers(List<Card> cards) {
+        for (Card card : cards) {
+            try {
+                card.setCardNumber(encryptionService.decrypt(card.getCardNumber()));
+            } catch (Exception e) {
+                logger.error("Error decrypting card number: {}", card.getCardNumber(), e);
+            }
+        }
+    }
+}

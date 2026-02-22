@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/cms_db
-    username: postgres
-    password: root
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cms_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:root}
     driver-class-name: org.postgresql.Driver
 
   sql:
@@ -11,11 +11,11 @@ spring:
       mode: never
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 logging:
   level:
-    root: INFO
+    root: ${LOG_LEVEL:INFO}
     com.epic.cms: DEBUG
     org.springframework.web: DEBUG
     org.springframework.jdbc: DEBUG
@@ -35,8 +35,8 @@ logging:
 cms:
   security:
     encryption:
-      key: "9fK3xLm8PqR2sT7vXyZ1w4U6nB8cD0eF" # MUST match VITE_ENCRYPTION_KEY
-      salt: "cms-salt-2024" # MUST match VITE_ENCRYPTION_SALT
+      key: "${ENCRYPTION_KEY:9fK3xLm8PqR2sT7vXyZ1w4U6nB8cD0eF}" # MUST match VITE_ENCRYPTION_KEY
+      salt: "${ENCRYPTION_SALT:cms-salt-2024}" # MUST match VITE_ENCRYPTION_SALT
       algorithm: "AES"
       transformation: "AES/ECB/PKCS5Padding"
     payload:

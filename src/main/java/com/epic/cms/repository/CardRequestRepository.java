@@ -1,6 +1,5 @@
 package com.epic.cms.repository;
 
-import com.epic.cms.service.CardEncryptionService;
 import com.epic.cms.mapper.CardRequestRowMapper;
 import com.epic.cms.model.CardRequest;
 import org.slf4j.Logger;
@@ -17,12 +16,10 @@ public class CardRequestRepository {
     private static final Logger logger = LoggerFactory.getLogger(CardRequestRepository.class);
     private final JdbcTemplate jdbcTemplate;
     private final CardRequestRowMapper rowMapper;
-    private final CardEncryptionService encryptionService;
 
-    public CardRequestRepository(JdbcTemplate jdbcTemplate, CardRequestRowMapper rowMapper, CardEncryptionService encryptionService) {
+    public CardRequestRepository(JdbcTemplate jdbcTemplate, CardRequestRowMapper rowMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.rowMapper = rowMapper;
-        this.encryptionService = encryptionService;
     }
 
     public void save(CardRequest cardRequest) {
@@ -32,13 +29,8 @@ public class CardRequestRepository {
             VALUES (?, ?, ?, ?)
         """;
 
-        // Encrypt card number before saving to maintain foreign key integrity with 'card' table
-        String encryptedCardNumber = isEncrypted(cardRequest.getCardNumber()) 
-            ? cardRequest.getCardNumber() 
-            : encryptionService.encrypt(cardRequest.getCardNumber());
-
         jdbcTemplate.update(sql,
-                encryptedCardNumber,
+                cardRequest.getCardNumber(),
                 cardRequest.getRequestReasonCode(),
                 cardRequest.getStatusCode(),
                 java.sql.Timestamp.valueOf(cardRequest.getCreateTime())
@@ -47,26 +39,19 @@ public class CardRequestRepository {
 
     public Optional<CardRequest> findById(Long requestId) {
         String sql = "SELECT * FROM card_request WHERE request_id = ?";
-        Optional<CardRequest> result = jdbcTemplate.query(sql, rowMapper, requestId)
+        return jdbcTemplate.query(sql, rowMapper, requestId)
                 .stream()
                 .findFirst();
-        
-        result.ifPresent(this::decryptCardNumber);
-        return result;
     }
 
     public List<CardRequest> findAll() {
         String sql = "SELECT * FROM card_request ORDER BY create_time DESC";
-        List<CardRequest> results = jdbcTemplate.query(sql, rowMapper);
-        results.forEach(this::decryptCardNumber);
-        return results;
+        return jdbcTemplate.query(sql, rowMapper);
     }
 
     public List<CardRequest> findAllWithPagination(int offset, int limit) {
         String sql = "SELECT * FROM card_request ORDER BY create_time DESC LIMIT ? OFFSET ?";
-        List<CardRequest> results = jdbcTemplate.query(sql, rowMapper, limit, offset);
-        results.forEach(this::decryptCardNumber);
-        return results;
+        return jdbcTemplate.query(sql, rowMapper, limit, offset);
     }
 
     public long countAllRequests() {
@@ -87,34 +72,12 @@ public class CardRequestRepository {
         );
     }
 
-    public List<CardRequest> findPendingRequestsByCardNumber(String cardNumber) {
-        // Encrypt plain text card number for DB lookup to match 'card' table foreign key
-        String encryptedCardNumber = isEncrypted(cardNumber) ? cardNumber : encryptionService.encrypt(cardNumber);
-        
+    public List<CardRequest> findPendingRequestsByCardNumber(String encryptedCardNumber) {
         String sql = """
             SELECT * FROM card_request 
             WHERE card_number = ? AND status_code = 'PENDING'
             ORDER BY create_time DESC
         """;
-        List<CardRequest> results = jdbcTemplate.query(sql, rowMapper, encryptedCardNumber);
-        results.forEach(this::decryptCardNumber);
-        return results;
-    }
-
-    private void decryptCardNumber(CardRequest request) {
-        if (request.getCardNumber() != null && isEncrypted(request.getCardNumber())) {
-            try {
-                request.setCardNumber(encryptionService.decrypt(request.getCardNumber()));
-            } catch (Exception e) {
-                logger.error("Error decrypting card number in CardRequest: {}", request.getCardNumber(), e);
-            }
-        }
-    }
-
-    private boolean isEncrypted(String text) {
-        if (text == null || text.isEmpty()) {
-            return false;
-        }
-        return text.length() > 20 || text.matches(".*[a-zA-Z+/=].*");
+        return jdbcTemplate.query(sql, rowMapper, encryptedCardNumber);
     }
 }
